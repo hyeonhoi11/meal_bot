@@ -1,0 +1,24 @@
+HELP.md
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+# 서비스 계정 키
+secrets/
+credentials.json
+
+# 로컬 DB
+data/
+.env
+
+# Cloudflare Worker
+worker/node_modules/
+worker/.wrangler/
+
+# macOS
+.DS_Store

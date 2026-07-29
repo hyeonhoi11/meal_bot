@@ -1,0 +1,9 @@
+name = "gwangju-meal"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+account_id = "93e4df45286c1eed7973ceb56b390cb2"
+
+[[kv_namespaces]]
+binding = "MEAL_KV"
+id = "46b3731c8f564f6d9679c20315209b15"

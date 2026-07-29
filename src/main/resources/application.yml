@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: meal-bot
+  datasource:
+    url: jdbc:h2:file:./data/mealbot;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
+server:
+  port: 8080
+
+slack:
+  bot-token: ${SLACK_BOT_TOKEN}
+  signing-secret: ${SLACK_SIGNING_SECRET}
+  channel-id: ${SLACK_CHANNEL_ID}
+
+google:
+  credentials-path: ${GOOGLE_CREDENTIALS_PATH}
+  spreadsheet-id: ${GOOGLE_SPREADSHEET_ID}
+  sheet-range: ${GOOGLE_SHEET_RANGE:'게시용식단표'!A1:H}
+  year: ${MEAL_YEAR:2026}
+
+meal:
+  site-name: 광주 캠퍼스 메뉴 (한국인은 밥심🔥)
+  site-url: ${MEAL_SITE_URL:}
+  broadcast-cron: ${MEAL_BROADCAST_CRON:0 0 8 * * *}
+  sync-cron: ${MEAL_SYNC_CRON:0 0 6 * * *}
+
+cloudflare:
+  enabled: ${CLOUDFLARE_ENABLED:false}
+  account-id: ${CLOUDFLARE_ACCOUNT_ID:}
+  namespace-id: ${CLOUDFLARE_NAMESPACE_ID:}
+  api-token: ${CLOUDFLARE_API_TOKEN:}
+
+logging:
+  level:
+    com.example.mealbot: DEBUG
