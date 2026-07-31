@@ -23,7 +23,8 @@ SKALA 광주 캠퍼스 강의장 월간 식단표(구글 시트)를 매일 08시
 
 ```mermaid
 flowchart LR
-    Sheet[구글 시트] -->|06:00 동기화| Sync[MealSyncService]
+    Drive[Drive 월간 xlsx] -->|자동 반영| Sheet[구글 시트]
+    Sheet -->|06:00 동기화| Sync[MealSyncService]
     Sync --> DB[(H2 DB)]
     Sync -->|주간 데이터 발행| KV[(Cloudflare KV)]
     DB --> Broadcast[MealBroadcastService]
@@ -36,6 +37,7 @@ flowchart LR
 두 개의 독립된 배포 단위가 Cloudflare KV 하나로만 연결되어 있고, 서로 직접 요청을 주고받지 않는다.
 
 **Spring Boot 앱 — GCP Compute Engine (e2-micro, 상시 구동)**
+- 매달 Drive에 새 월간 식단표(xlsx)가 올라오면 `DriveMealImportService`가 자동으로 감지해 구글 시트에 반영한다 (사람이 옮겨 적을 필요 없음).
 - 06:00(KST) `MealSyncService`가 구글 시트를 읽어 DB에 동기화하고, 그 주 데이터를 Cloudflare KV에 발행한다.
 - 08:00(KST) `MealBroadcastService`가 그날 점심, 저녁을 슬랙 채널에 게시한다 (`post_log` 테이블로 같은 날 중복 게시 차단).
 - systemd 서비스로 등록되어 있어 로컬 컴퓨터를 꺼도 매일 자동으로 동작한다.
@@ -65,6 +67,9 @@ Worker는 Spring Boot 앱에 직접 요청을 보내지 않고, 앱이 동기화
 **프레임워크 없이 HTML/CSS/JS로 웹페이지 구현**
 렌더링할 화면이 주간 그리드 하나뿐인 규모에서는 프레임워크 도입이 오히려 배포 파이프라인(빌드 → 배포)만 늘리는 과한 선택이라 판단하였고, Worker는 빌드 단계 없는 단일 JS 모듈이라, React 같은 프레임워크 대신 템플릿 문자열로 HTML을 직접 그리는 방식을 선택하였다. 
 
+**Drive 원본 파일을 구글 시트로 변환하지 않고 직접 파싱**
+매달 올라오는 xlsx를 구글 시트로 변환해 읽으려 했으나(Drive `files.copy`), 서비스 계정은 자체 Drive 저장 용량이 0이라 새 파일을 만드는 시점에 `storageQuotaExceeded` 오류가 발생하였다. 대신 xlsx를 바이트로 직접 내려받아 Apache POI로 셀 값을 읽는 방식으로 바꿔, 파일 생성 자체를 없애 이 제약을 우회하였다.
+
 ## 어려웠던 점 / 배운 것
 
 **구글 시트 파싱 — 정형화되지 않은 데이터 다루기**
@@ -74,6 +79,7 @@ Worker는 Spring Boot 앱에 직접 요청을 보내지 않고, 앱이 동기화
 - GCP 예산 알림을 `--budget-amount=1USD`로 생성하려다 실패하였다. 빌링 계정의 통화가 KRW였던 것이 원인이었고, `gcloud billing accounts describe`로 계정 정보를 조회하여 확인하였다.
 
 - Spring Boot fat jar 안의 H2 데이터베이스 도구를 VM에서 실행해야 했는데, VM에는 JRE만 설치되어 있어 `jar`/`unzip` 명령이 없음을 확인하여, Python `zipfile` 모듈로 jar 안의 클래스를 직접 꺼내는 방식으로 우회하였다.
+- Drive API로 xlsx를 구글 시트로 변환해 읽으려 했으나, 서비스 계정 자체의 Drive 저장 용량이 0이라 변환 사본을 만드는 시점에 `storageQuotaExceeded`가 발생하였다. xlsx를 바이트로 직접 받아 Apache POI로 파싱하는 방식으로 바꿔 해결하였다.
 
 **주간 그리드 UI를 다듬는 과정**
 - 요일 수가 5~7일로 유동적인 주(공휴일 등으로 데이터가 없는 날이 있음)에도 그리드가 깨지지 않도록 반응형 레이아웃으로 맞췄다.
@@ -95,6 +101,8 @@ Worker는 Spring Boot 앱에 직접 요청을 보내지 않고, 앱이 동기화
 **Integration**
 
 ![Google Sheets API](https://img.shields.io/badge/Google%20Sheets%20API-34A853?style=for-the-badge&logo=googlesheets&logoColor=white)
+![Google Drive API](https://img.shields.io/badge/Google%20Drive%20API-4285F4?style=for-the-badge&logo=googledrive&logoColor=white)
+![Apache POI](https://img.shields.io/badge/Apache%20POI-D22128?style=for-the-badge&logo=apache&logoColor=white)
 ![Slack API](https://img.shields.io/badge/Slack%20API-4A154B?style=for-the-badge&logo=slack&logoColor=white)
 
 **Frontend**
@@ -119,6 +127,7 @@ Worker는 Spring Boot 앱에 직접 요청을 보내지 않고, 앱이 동기화
 - 구글 서비스 계정 인증서(`credentials.json`)와 식단표가 있는 구글 시트 ID
 - 슬랙 앱 Bot Token, Signing Secret, 게시할 채널 ID
 - (선택) Cloudflare 계정, API 토큰, KV 네임스페이스 — 주간 웹페이지를 발행할 때만 필요
+- (선택) 월간 식단표 xlsx가 올라오는 Drive 폴더 ID + 서비스 계정에 폴더 뷰어·시트 편집자 권한 — 시트 자동 반영 기능에만 필요
 
 ### 환경변수
 `.env` 또는 실행 환경에 설정한다.
@@ -131,6 +140,7 @@ GOOGLE_SPREADSHEET_ID=...
 MEAL_YEAR=2026
 MEAL_SITE_URL=            # Cloudflare Worker 배포 URL, 비워두면 슬랙 메시지에 링크를 생략한다
 CLOUDFLARE_ENABLED=false  # true로 켜면 동기화 시점에 KV로 주간 데이터를 발행한다
+DRIVE_FOLDER_ID=          # 월간 식단표 xlsx가 올라오는 Drive 폴더 ID, 비워두면 자동 반영을 건너뛴다
 ```
 
 ### Spring Boot 앱
@@ -140,6 +150,7 @@ CLOUDFLARE_ENABLED=false  # true로 켜면 동기화 시점에 KV로 주간 데�
 ```
 스케줄 시간을 기다리지 않고 즉시 확인하려면:
 ```bash
+curl -X POST localhost:8080/admin/import-drive                 # Drive의 새 xlsx를 게시용 시트에 반영
 curl -X POST localhost:8080/admin/sync                        # 시트 → DB 동기화
 curl "localhost:8080/admin/meals?date=2026-07-29"              # 특정 날짜 조회
 curl -X POST "localhost:8080/admin/broadcast?date=2026-07-29"  # 슬랙 게시

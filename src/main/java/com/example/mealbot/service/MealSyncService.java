@@ -2,6 +2,7 @@ package com.example.mealbot.service;
 
 import com.example.mealbot.cloudflare.CloudflareKvPublisher;
 import com.example.mealbot.domain.Meal;
+import com.example.mealbot.drive.DriveMealImportService;
 import com.example.mealbot.repository.MealRepository;
 import com.example.mealbot.sheet.MealSheetParser;
 import com.example.mealbot.sheet.SheetReader;
@@ -24,6 +25,7 @@ public class MealSyncService {
     private final MealSheetParser parser;
     private final MealRepository mealRepository;
     private final CloudflareKvPublisher kvPublisher;
+    private final DriveMealImportService driveImportService;
 
     @Value("${google.year}")
     private int year;
@@ -35,6 +37,12 @@ public class MealSyncService {
 
     @Transactional
     public int sync() {
+        try {
+            driveImportService.importNewFilesIfAny();
+        } catch (Exception e) {
+            log.error("Drive 신규 식단표 반영 실패. 기존 시트로 계속 진행합니다.", e);
+        }
+
         List<Meal> parsed;
         try {
             parsed = parser.parse(sheetReader.readRows(), year);

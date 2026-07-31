@@ -25,6 +25,9 @@ google:
   sheet-range: ${GOOGLE_SHEET_RANGE:'게시용식단표'!A1:H}
   year: ${MEAL_YEAR:2026}
 
+drive:
+  folder-id: ${DRIVE_FOLDER_ID:}
+
 meal:
   site-name: 광주 캠퍼스 메뉴 (한국인은 밥심🔥)
   site-url: ${MEAL_SITE_URL:}

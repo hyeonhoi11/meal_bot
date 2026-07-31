@@ -2,6 +2,7 @@ package com.example.mealbot.config;
 
 import com.example.mealbot.cloudflare.CloudflareKvPublisher;
 import com.example.mealbot.cloudflare.WeekPayload;
+import com.example.mealbot.drive.DriveMealImportService;
 import com.example.mealbot.service.MealBroadcastService;
 import com.example.mealbot.service.MealSyncService;
 import com.example.mealbot.service.MealQueryService;
@@ -23,11 +24,18 @@ public class AdminController {
     private final MealBroadcastService broadcastService;
     private final MealQueryService queryService;
     private final CloudflareKvPublisher kvPublisher;
+    private final DriveMealImportService driveImportService;
 
     @PostMapping("/sync")
     public ResponseEntity<Map<String, Object>> sync() {
         int count = syncService.sync();
         return ResponseEntity.ok(Map.of("synced", count));
+    }
+
+    @PostMapping("/import-drive")
+    public ResponseEntity<Map<String, Object>> importDrive() {
+        int imported = driveImportService.importNewFilesIfAny();
+        return ResponseEntity.ok(Map.of("imported", imported));
     }
 
     @PostMapping("/broadcast")
