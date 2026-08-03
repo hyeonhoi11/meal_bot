@@ -9,6 +9,8 @@ import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.drive.model.File;
 import com.google.api.services.sheets.v4.Sheets;
 import com.google.api.services.sheets.v4.SheetsScopes;
+import com.google.api.services.sheets.v4.model.AppendValuesResponse;
+import com.google.api.services.sheets.v4.model.ClearValuesRequest;
 import com.google.api.services.sheets.v4.model.ValueRange;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -82,13 +84,14 @@ public class DriveMealImportService {
 
         int imported = 0;
         for (File file : files) {
-            if (importedRepository.existsById(file.getId())) continue;
-            if (importOne(file)) imported++;
+            ImportedDriveFile previous = importedRepository.findByFileName(file.getName()).orElse(null);
+            if (previous != null && previous.getFileId().equals(file.getId())) continue;
+            if (importOne(file, previous)) imported++;
         }
         return imported;
     }
 
-    private boolean importOne(File file) {
+    private boolean importOne(File file, ImportedDriveFile previous) {
         try {
             List<List<Object>> rows = readXlsxGrid(file.getId());
 
@@ -97,14 +100,23 @@ public class DriveMealImportService {
                 return false;
             }
 
-            sheets.spreadsheets().values()
+            if (previous != null && previous.getSheetRange() != null) {
+                sheets.spreadsheets().values()
+                        .clear(targetSpreadsheetId, previous.getSheetRange(), new ClearValuesRequest())
+                        .execute();
+            }
+
+            AppendValuesResponse response = sheets.spreadsheets().values()
                     .append(targetSpreadsheetId, targetRange, new ValueRange().setValues(rows))
                     .setValueInputOption("RAW")
                     .setInsertDataOption("INSERT_ROWS")
                     .execute();
+            String updatedRange = response.getUpdates().getUpdatedRange();
 
-            importedRepository.save(new ImportedDriveFile(file.getId(), file.getName()));
-            log.info("{} 반영 완료 ({}행)", file.getName(), rows.size());
+            if (previous != null) importedRepository.delete(previous);
+            importedRepository.save(new ImportedDriveFile(file.getId(), file.getName(), updatedRange));
+
+            log.info("{} 반영 완료 ({}행, {})", file.getName(), rows.size(), updatedRange);
             return true;
 
         } catch (Exception e) {
