@@ -19,18 +19,18 @@ class MealMessageBuilderTest {
     private final List<Meal> meals = List.of(new Meal(LocalDate.of(2026, 7, 29), MealType.LUNCH, "백미밥, 된장찌개"));
 
     @Test
-    @DisplayName("site-url 이 비어있으면 이번 주 식단표 링크를 생략한다")
+    @DisplayName("site-url 이 비어있으면 식단표 링크를 생략한다")
     void omitsLinkWhenSiteUrlBlank() {
         ReflectionTestUtils.setField(builder, "siteName", "광주 캠퍼스");
         ReflectionTestUtils.setField(builder, "siteUrl", "");
 
         List<LayoutBlock> blocks = builder.dailyBlocks(LocalDate.of(2026, 7, 29), meals);
 
-        assertThat(sectionTexts(blocks)).noneMatch(text -> text.contains("이번 주 식단표"));
+        assertThat(sectionTexts(blocks)).noneMatch(text -> text.contains("식단표 보러가기"));
     }
 
     @Test
-    @DisplayName("site-url 이 설정되어 있으면 이번 주 식단표 하이퍼링크를 붙인다")
+    @DisplayName("site-url 이 설정되어 있으면 식단표 하이퍼링크를 붙인다")
     void addsLinkWhenSiteUrlSet() {
         ReflectionTestUtils.setField(builder, "siteName", "광주 캠퍼스");
         ReflectionTestUtils.setField(builder, "siteUrl", "https://gwangju-meal.example.workers.dev");
@@ -38,7 +38,7 @@ class MealMessageBuilderTest {
         List<LayoutBlock> blocks = builder.dailyBlocks(LocalDate.of(2026, 7, 29), meals);
 
         assertThat(sectionTexts(blocks))
-                .anyMatch(text -> text.contains("<https://gwangju-meal.example.workers.dev|이번 주 식단표>"));
+                .anyMatch(text -> text.contains("<https://gwangju-meal.example.workers.dev|식단표 보러가기>"));
     }
 
     private List<String> sectionTexts(List<LayoutBlock> blocks) {

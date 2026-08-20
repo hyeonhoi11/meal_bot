@@ -57,7 +57,7 @@ public class MealMessageBuilder {
         if (siteUrl != null && !siteUrl.isBlank()) {
             blocks.add(divider());
             blocks.add(section(s -> s.text(markdownText(
-                    "🗓️ <%s|이번 주 식단표>".formatted(siteUrl)))));
+                    "🗓️ <%s|식단표 보러가기>".formatted(siteUrl)))));
         }
 
         return blocks;

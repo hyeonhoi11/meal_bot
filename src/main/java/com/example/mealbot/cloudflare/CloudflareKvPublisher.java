@@ -31,7 +31,8 @@ import java.util.Map;
 public class CloudflareKvPublisher {
 
     private static final String SET_SEP = " & ";
-    private static final String KV_KEY = "week";
+    private static final String CURRENT_WEEK_KEY = "week";
+    private static final String NEXT_WEEK_KEY = "week-next";
 
     private final MealQueryService queryService;
     private final ObjectMapper objectMapper;
@@ -77,16 +78,17 @@ public class CloudflareKvPublisher {
     public void publishIfEnabled(LocalDate anchor) {
         if (!enabled) return;
         try {
-            publish(buildPayload(anchor));
+            publish(CURRENT_WEEK_KEY, buildPayload(anchor));
+            publish(NEXT_WEEK_KEY, buildPayload(anchor.plusWeeks(1)));
         } catch (Exception e) {
             log.error("Cloudflare KV 발행 중 예외", e);
         }
     }
 
-    private void publish(WeekPayload payload) throws Exception {
+    private void publish(String kvKey, WeekPayload payload) throws Exception {
         String json = objectMapper.writeValueAsString(payload);
         String url = "https://api.cloudflare.com/client/v4/accounts/%s/storage/kv/namespaces/%s/values/%s"
-                .formatted(accountId, namespaceId, KV_KEY);
+                .formatted(accountId, namespaceId, kvKey);
 
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .header("Authorization", "Bearer " + apiToken)

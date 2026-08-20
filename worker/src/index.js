@@ -1,25 +1,30 @@
-const KV_KEY = "week";
+const CURRENT_WEEK_KEY = "week";
+const NEXT_WEEK_KEY = "week-next";
 
 export default {
   async fetch(request, env) {
-    const raw = await env.MEAL_KV.get(KV_KEY, { type: "json" });
-    if (!raw) {
-      return new Response(renderEmpty(), {
-        status: 200,
-        headers: { "content-type": "text/html; charset=UTF-8" },
-      });
-    }
+    const isNext = new URL(request.url).searchParams.get("week") === "next";
+    const raw = await env.MEAL_KV.get(isNext ? NEXT_WEEK_KEY : CURRENT_WEEK_KEY, { type: "json" });
+    const days = raw ? raw.days.filter((d) => d.lunch || d.dinner) : [];
 
-    return new Response(renderPage(raw), {
+    const body = days.length === 0 ? renderEmpty(isNext) : renderPage(raw, days, isNext);
+    return new Response(body, {
       status: 200,
       headers: { "content-type": "text/html; charset=UTF-8" },
     });
   },
 };
 
-function renderPage(payload) {
-  const days = payload.days.filter((d) => d.lunch || d.dinner);
+function weekTabs(isNext) {
+  return `
+    <div class="tabs">
+      <a class="tab${isNext ? "" : " active"}" href="?">이번 주</a>
+      <a class="tab${isNext ? " active" : ""}" href="?week=next">다음 주</a>
+    </div>
+  `;
+}
 
+function renderPage(payload, days, isNext) {
   return page(`
     <div class="top-bar">
       <span class="brand">🍚 오메오메</span>
@@ -29,10 +34,12 @@ function renderPage(payload) {
     <div class="container">
       <div class="title-row">
         <div>
-          <h1>이번 주 식단표</h1>
+          <h1>${isNext ? "다음 주 식단표" : "이번 주 식단표"}</h1>
           <h2>한국인은 밥심🔥 / ${escapeHtml(payload.rangeLabel)}</h2>
         </div>
       </div>
+
+      ${weekTabs(isNext)}
 
       <div class="grid">
         ${days.map((d) => dayCard(d, d.date === payload.today)).join("\n")}
@@ -70,13 +77,14 @@ function mealRow(meal, kind) {
   `;
 }
 
-function renderEmpty() {
+function renderEmpty(isNext) {
   return page(`
     <div class="top-bar">
       <span class="brand">🍚 오메오메</span>
     </div>
     <div class="container">
-      <h1>이번 주 식단표</h1>
+      <h1>${isNext ? "다음 주 식단표" : "이번 주 식단표"}</h1>
+      ${weekTabs(isNext)}
       <h2>아직 발행된 식단표가 없습니다</h2>
     </div>
   `);
@@ -87,7 +95,7 @@ const PAGE_HEAD = `<!doctype html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>오메오메 · 이번 주 식단표</title>
+<title>오메오메 · 식단표</title>
 <style>
   :root {
     --navy: #0e306d;
@@ -144,6 +152,24 @@ const PAGE_HEAD = `<!doctype html>
   }
   h1 { color: #fff; margin: 0 0 6px; font-size: 26px; }
   h2 { color: var(--muted); margin: 0; font-weight: 500; font-size: 14px; }
+  .tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+  .tab {
+    color: rgba(255, 255, 255, 0.7);
+    background: rgba(255, 255, 255, 0.08);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 8px 18px;
+    border-radius: 999px;
+  }
+  .tab.active {
+    color: var(--navy);
+    background: #fff;
+  }
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
