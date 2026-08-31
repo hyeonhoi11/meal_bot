@@ -17,6 +17,7 @@ import com.google.auth.oauth2.GoogleCredentials;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DataFormatter;
+import org.apache.poi.ss.usermodel.FormulaEvaluator;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -26,14 +27,21 @@ import org.springframework.stereotype.Service;
 
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @Slf4j
 public class DriveMealImportService {
 
     private static final String XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+    private static final Pattern BARE_NUMBER = Pattern.compile("^(\\d{4,6})(\\.0+)?$");
+    private static final int EXCEL_SERIAL_MIN = 40000; // 2009년경
+    private static final int EXCEL_SERIAL_MAX = 55000; // 2050년경
 
     private final Drive drive;
     private final Sheets sheets;
@@ -131,6 +139,7 @@ public class DriveMealImportService {
 
             Sheet sheet = workbook.getSheetAt(0);
             DataFormatter formatter = new DataFormatter();
+            FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
             List<List<Object>> rows = new ArrayList<>();
 
             for (int r = 0; r <= sheet.getLastRowNum(); r++) {
@@ -139,12 +148,25 @@ public class DriveMealImportService {
                 if (row != null) {
                     for (int c = 0; c < row.getLastCellNum(); c++) {
                         Cell cell = row.getCell(c);
-                        cells.add(cell == null ? "" : formatter.formatCellValue(cell));
+                        cells.add(cell == null ? "" : cellValue(cell, formatter, evaluator));
                     }
                 }
                 rows.add(cells);
             }
             return rows;
         }
+    }
+
+    private String cellValue(Cell cell, DataFormatter formatter, FormulaEvaluator evaluator) {
+        String formatted = formatter.formatCellValue(cell, evaluator);
+
+        Matcher m = BARE_NUMBER.matcher(formatted.trim());
+        if (!m.matches()) return formatted;
+
+        int serial = Integer.parseInt(m.group(1));
+        if (serial < EXCEL_SERIAL_MIN || serial > EXCEL_SERIAL_MAX) return formatted;
+
+        LocalDate date = LocalDate.of(1899, 12, 30).plusDays(serial);
+        return "%d월 %d일".formatted(date.getMonthValue(), date.getDayOfMonth());
     }
 }
