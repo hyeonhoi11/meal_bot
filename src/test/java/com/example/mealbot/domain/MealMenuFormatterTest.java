@@ -18,6 +18,15 @@ class MealMenuFormatterTest {
     }
 
     @Test
+    @DisplayName("별표로 표기된 특일 마커도 추출하고, 세트 항목의 별표와 구분한다")
+    void parsesStarSpecialDay() {
+        ParsedMenu parsed = MealMenuFormatter.parse("*불고기특식데이*, 맑은순두부국, 핫도그*케찹", " & ");
+
+        assertThat(parsed.specialLabel()).isEqualTo("불고기특식데이");
+        assertThat(parsed.items()).containsExactly("맑은순두부국", "핫도그 & 케찹");
+    }
+
+    @Test
     @DisplayName("특일 마커가 없으면 null 을 반환한다")
     void returnsNullWhenNoSpecialDay() {
         ParsedMenu parsed = MealMenuFormatter.parse("백미밥, 된장찌개", " & ");
