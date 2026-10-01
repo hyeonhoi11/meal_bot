@@ -57,7 +57,7 @@ function dayCard(day, isToday) {
       <div class="card-head">
         <span class="dow">${escapeHtml(day.label)}</span>
         <span class="date">${escapeHtml(day.shortDate)}</span>
-        ${specials.map((m) => `<span class="special">${escapeHtml(m.special)}</span>`).join("")}
+        ${specials.map((m) => `<span class="special" title="${escapeHtml(m.special)}">${escapeHtml(m.special)}</span>`).join("")}
       </div>
       ${mealRow(day.lunch, "lunch")}
       ${mealRow(day.dinner, "dinner")}
@@ -202,21 +202,27 @@ const PAGE_HEAD = `<!doctype html>
   .card-head {
     display: flex;
     align-items: baseline;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 8px;
     margin-bottom: 14px;
-    padding-right: 28px;
   }
-  .dow { font-size: 20px; font-weight: 800; color: var(--ink); }
-  .date { color: var(--muted); font-size: 13px; }
+  /* 리본은 '오늘' 카드에만 있으므로 그 카드에서만 자리를 비워둔다 */
+  .card.today .card-head { padding-right: 28px; }
+  .dow { font-size: 20px; font-weight: 800; color: var(--ink); white-space: nowrap; }
+  .date { color: var(--muted); font-size: 13px; white-space: nowrap; }
   .special {
+    margin-left: auto;
+    align-self: center;
     background: var(--orange);
     color: #fff;
     font-weight: 700;
-    font-size: 11px;
-    padding: 3px 10px;
+    font-size: 10px;
+    padding: 3px 8px;
     border-radius: 999px;
     white-space: nowrap;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .meal { padding: 12px 0; border-top: 1px solid var(--card-line); }
   .meal:first-of-type { border-top: none; padding-top: 0; }
